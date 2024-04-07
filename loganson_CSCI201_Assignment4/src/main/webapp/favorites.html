@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html>
+<head>
+	
+<meta charset="UTF-8">
+
+<title>Favorites</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAEZW8yBCaPohPu7ozLvQk9EZLj60Wb3LY&callback=initMap&libraries=maps,marker&v=beta"></script>
+
+<script>
+	var favorList = []; 
+	var url = new URL(window.location.href);
+    var params = new URLSearchParams(url.search);
+    var userId = params.get('user_id');
+	
+	function updateFavorites(userId) {
+	    var data = "user_id=" + encodeURIComponent(userId);
+	    var xhr = new XMLHttpRequest();
+	    xhr.open("POST", "FavoritesResultsServlet", true);
+	    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	    xhr.onreadystatechange = function() {
+	        if (xhr.readyState === 4 && xhr.status === 200) {
+	            var results = xhr.responseText;
+	            favorList = JSON.parse(results);
+	            submitSearchForm(new Event('submit'));
+	        }
+	    };
+	    xhr.send(data);
+	}	
+	
+	document.addEventListener('DOMContentLoaded', function() {
+		initializePage();
+		document.getElementById('searchForm').addEventListener('submit', submitSearchForm);
+		getResults(function(favorites) {
+			console.log(favorites);
+		});
+	});
+	
+	function RemoveFavoriteForm(event, restaurantName, pictureUrl, address) {
+	    event.preventDefault();
+		var url = new URL(window.location.href);
+		var params = new URLSearchParams(url.search);
+		var userId = params.get('user_id');
+
+	    var data = "restaurantName=" + encodeURIComponent(restaurantName) +
+	               "&picUrl=" + encodeURIComponent(pictureUrl) +
+	               "&address=" + encodeURIComponent(address) + 
+	               "&user_id=" + encodeURIComponent(userId);
+	
+	    var xhr = new XMLHttpRequest();
+	    xhr.open("POST", "RemoveFavoriteServlet", true); 
+	    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	
+	    xhr.onreadystatechange = function() {
+	        if (xhr.readyState === 4 && xhr.status === 200) {
+	            //alert("Favorites removed successfully.");
+	        }
+	    };
+	
+	    xhr.send(data);
+	    return false; 
+	}
+	
+	
+	function createSortDropdown() {
+	  var container = document.getElementById('resultsDiv');
+	
+	  // Create the dropdown container
+	  var dropdownContainer = document.createElement('div');
+	  dropdownContainer.className = 'dropdown-container';
+	  dropdownContainer.style.textAlign = 'right'; 
+	  dropdownContainer.style.marginTop = '20px'; 
+	  dropdownContainer.style.marginRight = '10px'; 
+	
+	  // Create the select element
+	  var select = document.createElement('select');
+	  select.id = 'sortBy';
+	  select.className = 'sort-select'; 
+	  select.onchange = sortResults; 
+	
+	  // Options for the dropdown
+	  var options = [
+	    { value: 'default', text: '\u2B07 ' + 'Sort By' },
+	    { value: 'name_asc', text: 'A to Z' },
+	    { value: 'name_desc', text: 'Z to A' },
+	    { value: 'rating_high', text: 'Highest Rating' },
+	    { value: 'rating_low', text: 'Lowest Rating' },
+	    { value: 'most_recent', text: 'Most Recent' },
+	    { value: 'least_recent', text: 'Least Recent' }
+	  ];
+	
+	  // Create and append options to the select element
+	  options.forEach(function(opt) {
+	    var option = document.createElement('option');
+	    option.value = opt.value;
+	    option.textContent = opt.text;
+	    select.appendChild(option);
+	  });
+	
+	  // Append the select element to the dropdown container
+	  dropdownContainer.appendChild(select);
+	
+	  // Append the dropdownx container to the results container
+	  container.appendChild(dropdownContainer);
+	
+	  // Style the dropdown
+	  select.style.padding = '10px'; 
+	  select.style.border = '1px solid #ccc'; 
+	  select.style.borderRadius = '4px'; 
+	  select.style.marginRight = '10px'; 
+	  
+	  return dropdownContainer;
+	}
+
+	function sortResults() {
+	    var select = document.getElementById('sortBy');
+    	var sortValue = select.value;
+		console.log(sortValue); 
+		
+		getUserName(function(username) {
+	    var resultsDiv = document.getElementById("resultsDiv");
+	    resultsDiv.innerHTML = ''; 
+	  
+		var headerContainer = document.createElement('div');
+	    headerContainer.style.display = 'flex';
+	    headerContainer.style.justifyContent = 'space-between';
+	    headerContainer.style.alignItems = 'center';
+	    headerContainer.style.marginTop = '0px'; 
+	    headerContainer.style.marginBottom = '0px'; 
+    
+	    var header = document.createElement('h2');
+	    header.textContent = username.trim() + "'s Favorites";
+	    header.style.paddingTop = '20px';
+	    
+	    headerContainer.appendChild(header);
+	    
+	    var dropdown = createSortDropdown();
+	     
+	    headerContainer.appendChild(dropdown);
+
+	    resultsDiv.appendChild(headerContainer);
+		
+		getResults(function(results) {
+			favorList.sort(function(a, b) {
+		        switch (sortValue) {
+		            case 'name_asc':
+		                return a.name.localeCompare(b.name); // Ascending by name
+		            case 'name_desc':
+		                return b.name.localeCompare(a.name); // Descending by name
+		            case 'rating_high':
+		                return b.rating - a.rating; // Descending by rating
+		            case 'rating_low':
+		                return a.rating - b.rating; // Ascending by rating	              
+		        }
+		    });
+		    
+		  if (sortValue == 'most_recent') {
+		  		favorList.reverse();
+		  }
+			
+		  var reservations = favorList;
+		
+	      reservations.forEach(function(reservation) {
+                var restaurantContainer = document.createElement('div');
+                restaurantContainer.className = 'restaurant-container';
+                
+                var restaurantImage = document.createElement('img');
+                restaurantImage.src = reservation.img_url;
+                restaurantImage.alt = reservation.name + ' image';
+                restaurantImage.className = 'restaurant-image';
+                
+                restaurantImage.onclick = function() {	            
+				    var resultsDiv2 = document.getElementById("resultsDiv");
+            		resultsDiv2.innerHTML = ''; 
+            		
+            		var result = document.createElement('h2');
+		            result.textContent = reservation.name;
+		            resultsDiv.appendChild(result);
+		            
+            		var restaurantContainer = document.createElement('div');
+	                restaurantContainer.className = 'restaurant-container';
+	               
+	                var restaurantImage = document.createElement('img');
+	                restaurantImage.src = reservation.img_url;
+	                restaurantImage.alt = reservation.name + ' image';
+	                restaurantImage.className = 'restaurant-image';
+            		
+            		var restaurantInfo = document.createElement('div');
+	                restaurantInfo.className = 'restaurant-info';
+	              
+	                var restaurantAddress = document.createElement('p');
+	                restaurantAddress.textContent = "Address: " + reservation.address;
+	               	
+	               	var phonenumber = document.createElement('p');
+	                phonenumber.textContent = "Phone No. " + reservation.display_phone;
+	               	
+	               	var cuisine = document.createElement('p');
+	               	cuisine.textContent = "Cuisine: " + reservation.cuisine;
+	               	
+	               	var price = document.createElement('p');
+	               	price.textContent = "Price: " + reservation.price;
+	               	
+	               	var ratingDiv = document.createElement('div');
+				    ratingDiv.className = 'rating';
+				
+				    var ratingLabel = document.createElement('span');
+				    ratingLabel.className = 'rating-label';
+				    ratingLabel.textContent = "Rating: ";
+				    ratingDiv.appendChild(ratingLabel);
+				
+			   		// Create star container
+				    var starContainer = document.createElement('div');
+				    starContainer.className = 'starContainer';
+				    starContainer.textContent = '\u2605' + '\u2605' + '\u2605' + '\u2605' + '\u2605'; 
+				    var StarContainerWidth = reservation.rating / 5.0 * 80.0;
+					starContainer.style.width = StarContainerWidth + "px";
+				    ratingDiv.appendChild(starContainer);
+						
+	                restaurantInfo.appendChild(restaurantAddress);
+	                restaurantInfo.appendChild(phonenumber);
+	               	restaurantInfo.appendChild(cuisine);
+	                restaurantInfo.appendChild(price);
+				    restaurantInfo.appendChild(ratingDiv);
+
+	                restaurantContainer.appendChild(restaurantImage);
+	                restaurantContainer.appendChild(restaurantInfo);
+	                
+	                var buttonContainer = document.createElement('div');
+	                buttonContainer.className = 'buttonContainer';
+	                
+	                var isFavorite = favorList.some(function(favoriteRestaurant) {
+	                    return favoriteRestaurant.name === reservation.name;
+	                });
+	
+	                if (!isFavorite) {
+	                    var addToFavoritesButton = document.createElement('button');
+					    addToFavoritesButton.textContent = '\u2605' + ' Add to Favorites';
+					    addToFavoritesButton.className = 'favorites-button'; 
+						addToFavoritesButton.onclick = function () {
+		    				AddFavoriteForm(event, reservation.name, reservation.image_url, reservation.address); // Pass the restaurant name here
+							addToFavoritesButton.textContent = '\u2605' + ' Remove from Favorites';
+						};
+					    buttonContainer.appendChild(addToFavoritesButton); 
+	                }
+	                else {
+						var addToFavoritesButton = document.createElement('button');
+					    addToFavoritesButton.textContent = '\u2605' + ' Remove from Favorites';
+					    addToFavoritesButton.className = 'favorites-button'; 
+						addToFavoritesButton.onclick = function () {
+		    				RemoveFavoriteForm(event, reservation.name, reservation.image_url, reservation.address); // Pass the restaurant name here
+							addToFavoritesButton.textContent = '\u2605' + ' Add to Favorites';
+						};
+					    buttonContainer.appendChild(addToFavoritesButton); 
+					}
+				    
+				    var submitReservationButton = document.createElement('button');
+				    submitReservationButton.textContent = 'Add Reservation';
+				    submitReservationButton.className = 'reservation-button'; // Add a class for styling
+				    submitReservationButton.onclick = function () {
+						createReservationForm(this.parentElement, reservation.name, reservation.image_url, reservation.address);
+					};
+	                buttonContainer.appendChild(submitReservationButton);
+	                
+	                resultsDiv.appendChild(restaurantContainer);
+	            	resultsDiv.appendChild(buttonContainer);
+				};
+                
+                var restaurantInfo = document.createElement('div');
+                restaurantInfo.className = 'restaurant-info';
+                
+                var restaurantName = document.createElement('h3');
+                restaurantName.textContent = reservation.name;
+                
+                var restaurantAddress = document.createElement('p');
+                restaurantAddress.textContent = reservation.address;
+                
+               	var restaurantUrl = document.createElement('a');
+               	var fullUrl = reservation.url;
+               	var trimmedUrl = fullUrl.split('?')[0];
+				restaurantUrl.href = trimmedUrl; // Set href to the trimmed URL
+				restaurantUrl.textContent = trimmedUrl; 
+               
+                restaurantInfo.appendChild(restaurantName);
+                restaurantInfo.appendChild(restaurantAddress);
+                restaurantInfo.appendChild(restaurantUrl);
+
+                restaurantContainer.appendChild(restaurantImage);
+                restaurantContainer.appendChild(restaurantInfo);
+                
+                resultsDiv.appendChild(restaurantContainer);
+	      	});
+	     });
+	  });
+	}
+	
+	function initializePage() {
+	  getUserName(function(username) {
+	    var resultsDiv = document.getElementById("resultsDiv");
+	    resultsDiv.innerHTML = ''; // Clear previous results
+	  
+		var headerContainer = document.createElement('div');
+	    headerContainer.style.display = 'flex';
+	    headerContainer.style.justifyContent = 'space-between';
+	    headerContainer.style.alignItems = 'center';
+	    headerContainer.style.marginTop = '0px'; 
+	    headerContainer.style.marginBottom = '0px'; 
+    
+	    var header = document.createElement('h2');
+	    header.textContent = username.trim() + "'s Favorites";
+	    header.style.paddingTop = '20px';
+	    
+	    headerContainer.appendChild(header);
+	    
+	    var dropdown = createSortDropdown();
+	     
+	    headerContainer.appendChild(dropdown);
+
+	    resultsDiv.appendChild(headerContainer);
+		
+		getResults(function(results) {
+	      var reservations = favorList;
+	      reservations.reverse();
+	      reservations.forEach(function(reservation) {
+                var restaurantContainer = document.createElement('div');
+                restaurantContainer.className = 'restaurant-container';
+                
+                var restaurantImage = document.createElement('img');
+                restaurantImage.src = reservation.img_url;
+                restaurantImage.alt = reservation.name + ' image';
+                restaurantImage.className = 'restaurant-image';
+                
+                restaurantImage.onclick = function() {	            
+				    var resultsDiv2 = document.getElementById("resultsDiv");
+            		resultsDiv2.innerHTML = ''; // Clear previous results
+            		
+            		var result = document.createElement('h2');
+		            result.textContent = reservation.name;
+		            resultsDiv.appendChild(result);
+		            
+            		var restaurantContainer = document.createElement('div');
+	                restaurantContainer.className = 'restaurant-container';
+	               
+	                var restaurantImage = document.createElement('img');
+	                restaurantImage.src = reservation.img_url;
+	                restaurantImage.alt = reservation.name + ' image';
+	                restaurantImage.className = 'restaurant-image';
+            		
+            		var restaurantInfo = document.createElement('div');
+	                restaurantInfo.className = 'restaurant-info';
+	              
+	                var restaurantAddress = document.createElement('p');
+	                restaurantAddress.textContent = "Address: " + reservation.address;
+	               	
+	               	var phonenumber = document.createElement('p');
+	                phonenumber.textContent = "Phone No. " + reservation.display_phone;
+	               	
+	               	var cuisine = document.createElement('p');
+	               	cuisine.textContent = "Cuisine: " + reservation.cuisine;
+	               	
+	               	var price = document.createElement('p');
+	               	price.textContent = "Price: " + reservation.price;
+	               	
+	               var ratingDiv = document.createElement('div');
+				    ratingDiv.className = 'rating';
+				
+				    // Create rating label
+				    var ratingLabel = document.createElement('span');
+				    ratingLabel.className = 'rating-label';
+				    ratingLabel.textContent = "Rating: ";
+				    ratingDiv.appendChild(ratingLabel);
+				
+					// Create star container
+				    var starContainer = document.createElement('div');
+				    starContainer.className = 'starContainer';
+				    starContainer.textContent = '\u2605' + '\u2605' + '\u2605' + '\u2605' + '\u2605'; 
+				    //console.log(restaurant.name + " has rating: " + restaurant.rating);
+				    var StarContainerWidth = reservation.rating / 5.0 * 80.0;
+				    //console.log(StarContainerWidth);
+					starContainer.style.width = StarContainerWidth + "px";
+				    ratingDiv.appendChild(starContainer);
+					
+	                restaurantInfo.appendChild(restaurantAddress);
+	                restaurantInfo.appendChild(phonenumber);
+	               	restaurantInfo.appendChild(cuisine);
+	                restaurantInfo.appendChild(price);
+				    restaurantInfo.appendChild(ratingDiv);
+
+	                restaurantContainer.appendChild(restaurantImage);
+	                restaurantContainer.appendChild(restaurantInfo);
+	                
+	                var buttonContainer = document.createElement('div');
+	                buttonContainer.className = 'buttonContainer';
+	                
+	                var isFavorite = favorList.some(function(favoriteRestaurant) {
+	                    return favoriteRestaurant.name === reservation.name;
+	                });
+	
+	                if (!isFavorite) {
+	                    var addToFavoritesButton = document.createElement('button');
+					    addToFavoritesButton.textContent = '\u2605' + ' Add to Favorites';
+					    addToFavoritesButton.className = 'favorites-button'; // Add a class for styling
+						addToFavoritesButton.onclick = function () {
+		    				 AddFavoriteForm(event, reservation.name, reservation.image_url, reservation.address); // Pass the restaurant name here
+							 addToFavoritesButton.textContent = '\u2605' + ' Remove from Favorites';
+						};
+					    buttonContainer.appendChild(addToFavoritesButton); 
+	                }
+	                else {
+						var addToFavoritesButton = document.createElement('button');
+					    addToFavoritesButton.textContent = '\u2605' + ' Remove from Favorites';
+					    addToFavoritesButton.className = 'favorites-button'; // Add a class for styling
+						addToFavoritesButton.onclick = function () {
+		    				RemoveFavoriteForm(event, reservation.name, reservation.image_url, reservation.address); // Pass the restaurant name here
+							addToFavoritesButton.textContent = '\u2605' + ' Add to Favorites';
+						};
+					    buttonContainer.appendChild(addToFavoritesButton); 
+					}
+				    
+				    
+				    var submitReservationButton = document.createElement('button');
+				    submitReservationButton.textContent = 'Add Reservation';
+				    submitReservationButton.className = 'reservation-button'; // Add a class for styling
+				    submitReservationButton.onclick = function () {
+						createReservationForm(this.parentElement, reservation.name, reservation.image_url, reservation.address);
+					};
+	                buttonContainer.appendChild(submitReservationButton);
+	                
+	                resultsDiv.appendChild(restaurantContainer);
+	            	resultsDiv.appendChild(buttonContainer);
+				};
+                
+                var restaurantInfo = document.createElement('div');
+                restaurantInfo.className = 'restaurant-info';
+                
+                var restaurantName = document.createElement('h3');
+                restaurantName.textContent = reservation.name;
+                
+                var restaurantAddress = document.createElement('p');
+                restaurantAddress.textContent = reservation.address;
+                
+               	var restaurantUrl = document.createElement('a');
+               	var fullUrl = reservation.url;
+               	var trimmedUrl = fullUrl.split('?')[0];
+				restaurantUrl.href = trimmedUrl; // Set href to the trimmed URL
+				restaurantUrl.textContent = trimmedUrl; 
+               
+                restaurantInfo.appendChild(restaurantName);
+                restaurantInfo.appendChild(restaurantAddress);
+                restaurantInfo.appendChild(restaurantUrl);
+
+                restaurantContainer.appendChild(restaurantImage);
+                restaurantContainer.appendChild(restaurantInfo);
+                
+                resultsDiv.appendChild(restaurantContainer);
+	      	});
+	     });
+	  });
+	}
+	
+	function getResults(callback) {
+	    var url = new URL(window.location.href);
+	    var params = new URLSearchParams(url.search);
+	    var userId = params.get('user_id');
+	    
+	    console.log("user is " + userId);
+	
+	    var data = "user_id=" + encodeURIComponent(userId);
+	
+	    var xhr = new XMLHttpRequest();
+	    xhr.open("POST", "FavoritesResultsServlet", true); 
+	    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	
+	    xhr.onreadystatechange = function() {
+	        if (xhr.readyState === 4 && xhr.status === 200) {
+	            var results = xhr.responseText;
+	            console.log(results);
+	            favorList = JSON.parse(results);
+	            //console.log(results);
+	            callback(results);
+	        }
+	    };
+	
+	    xhr.send(data);
+	};
+	
+	function getUserName(callback) {
+	    var url = new URL(window.location.href);
+	    var params = new URLSearchParams(url.search);
+	    var userId = params.get('user_id');
+	    
+	    console.log("user is " + userId);
+	
+	    var data = "user_id=" + encodeURIComponent(userId);
+	
+	    var xhr = new XMLHttpRequest();
+	    xhr.open("POST", "FindUserServlet", true); 
+	    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	
+	    xhr.onreadystatechange = function() {
+	        if (xhr.readyState === 4 && xhr.status === 200) {
+	            var username = xhr.responseText;
+	            console.log(username);
+	            callback(username);
+	        }
+	    };
+	
+	    xhr.send(data);
+	};
+	
+	let map;
+	let clickListener; 
+	
+	function initMap() {
+	  map = new google.maps.Map(document.getElementById("map"), {
+	    center: { lat: 34.022415, lng: -118.285530 },
+	    zoom: 3,
+	  });
+	  
+	  clickListener = map.addListener("click", function(e) {
+        placeMarkerAndPanTo(e.latLng, map);
+      });
+	  
+	  return false;
+	}
+	
+	function placeMarkerAndPanTo(latLng, map) {
+	    new google.maps.Marker({
+	        position: latLng,
+	        map: map
+	    });
+	
+	    // Set the values of the inputs
+	    document.getElementsByName("latitude")[0].value = latLng.lat(); 
+	    document.getElementsByName("longitude")[0].value = latLng.lng();
+	
+	    google.maps.event.removeListener(clickListener);
+	}	
+	
+
+	function openMapPopup(event) {
+		if (event) {
+        	event.preventDefault();
+    	}
+    	
+    	window.onclick = function(event) {
+		    if (event.target == modal) {
+		        modal.style.display = "none";
+		    }
+		};
+    
+	    var modal = document.getElementById("myModal");
+	    var span = document.getElementsByClassName("close")[0];
+	    
+	    modal.style.display = "block";
+	    
+	    span.onclick = function() {
+	        modal.style.display = "none";
+	    }
+	    
+	    window.onclick = function(event) {
+	        if (event.target == modal) {
+	            modal.style.display = "none";
+	        }
+	    }
+	
+	    // Initialization of the map should be triggered here
+	    initMap();
+	}
+	
+	function printStars(rating) {
+	  let stars = '';
+	  var count = 0;
+	  for (let i = 0; i < Math.floor(rating); i++) {
+	      stars += '\u2605'; 
+	      count += 1;
+	  }
+	  return stars;
+	} 
+	
+	function createReservationForm(restaurantContainer, restaurantName, pictureUrl, address) {
+		if (restaurantContainer.querySelector('.reservation-form')) {
+        	return;
+   		}
+		
+	    var reservationForm = document.createElement('div');
+	    reservationForm.className = 'reservation-form';
+	
+	    var dateInput = document.createElement('input');
+	    dateInput.type = 'date';
+	    dateInput.name = 'reservationDate';
+	    dateInput.required = true;
+	    dateInput.placeholder = 'Date';
+	    dateInput.className = 'lineInput1';
+	    reservationForm.appendChild(dateInput);
+	
+	    var timeInput = document.createElement('input');
+	    timeInput.type = 'time';
+	    timeInput.name = 'reservationTime';
+	    timeInput.required = true;
+	    timeInput.placeholder = 'Time';
+	    timeInput.className = 'lineInput2';
+	    reservationForm.appendChild(timeInput);
+	
+	    var notesInput = document.createElement('textarea');
+	    notesInput.name = 'reservationNotes';
+	    notesInput.placeholder = 'Reservation Notes';
+	    notesInput.className = 'note';
+	    reservationForm.appendChild(notesInput);
+	    
+		var submitReservationButton = document.createElement('button');
+	    submitReservationButton.textContent = 'Submit Reservation';
+	    submitReservationButton.className = 'reservation-button2'; // Add a class for styling
+        reservationForm.appendChild(submitReservationButton);
+        submitReservationButton.onclick = function () {
+		    submitReservationForm(event, restaurantName, pictureUrl, address, reservationForm); // Pass the restaurant name here
+		};
+	
+	    restaurantContainer.appendChild(reservationForm);
+	    
+	    return false;
+	}
+	
+	function submitReservationForm(event, restaurantName, pictureUrl, address, reservationForm) {
+	    event.preventDefault();
+	
+	    // Assuming the reservation form inputs are within the same container as the button
+		var url = new URL(window.location.href);
+		var params = new URLSearchParams(url.search);
+		var userId = params.get('user_id');
+	    var reservationDate = document.querySelector('input[name="reservationDate"]').value;
+	    var reservationTime = document.querySelector('input[name="reservationTime"]').value;
+	    var reservationNotes = document.querySelector('textarea[name="reservationNotes"]').value;
+	
+	    // Basic validation
+	    if (!reservationDate || !reservationTime || !reservationNotes) {
+	        alert('Please fill in all the reservation details');
+	        return false;
+	    }
+	
+	    var data = "restaurantName=" + encodeURIComponent(restaurantName) +
+	               "&reservationDate=" + encodeURIComponent(reservationDate) +
+	               "&reservationTime=" + encodeURIComponent(reservationTime) +
+	               "&reservationNotes=" + encodeURIComponent(reservationNotes) +
+	               "&picUrl=" + encodeURIComponent(pictureUrl) +
+	               "&address=" + encodeURIComponent(address) + 
+	               "&user_id=" + encodeURIComponent(userId);
+	
+	    var xhr = new XMLHttpRequest();
+	    xhr.open("POST", "ReservationsServlet", true); 
+	    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	
+	    xhr.onreadystatechange = function() {
+	        if (xhr.readyState === 4 && xhr.status === 200) {
+	            // Handle the response from the servlet
+	            reservationForm.innerHTML = '';
+	            alert("Reservation submitted successfully.");  
+	        }
+	    };
+	
+	    xhr.send(data);
+	    return false; 
+	}
+	
+	function AddFavoriteForm(event, restaurantName, pictureUrl, address) {
+	    event.preventDefault();
+	    // Assuming the reservation form inputs are within the same container as the button
+		var url = new URL(window.location.href);
+		var params = new URLSearchParams(url.search);
+		var userId = params.get('user_id');
+
+	    var data = "restaurantName=" + encodeURIComponent(restaurantName) +
+	               "&picUrl=" + encodeURIComponent(pictureUrl) +
+	               "&address=" + encodeURIComponent(address) + 
+	               "&user_id=" + encodeURIComponent(userId);
+	
+	    var xhr = new XMLHttpRequest();
+	    xhr.open("POST", "FavoritesServlet", true); 
+	    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	
+	    xhr.onreadystatechange = function() {
+	        if (xhr.readyState === 4 && xhr.status === 200) {
+	            // Handle the response from the servlet
+	            //alert("Favorites submitted successfully.");
+	            //updateFavorites(userId);
+	        }
+	    };
+	
+	    xhr.send(data);
+	    return false; 
+	}
+
+	function submitSearchForm(event) {
+		event.preventDefault();
+		
+	    var restaurantName = document.getElementsByName("restaurantName")[0].value;
+	    var latitude = document.getElementsByName("latitude")[0].value;
+	    var longitude = document.getElementsByName("longitude")[0].value;
+	    var choiceElement = document.querySelector('input[name="choice"]:checked');
+	    var choice = choiceElement ? choiceElement.value : '';
+	
+	    if (restaurantName.trim() === '' || latitude.trim() === '' || longitude.trim() === '') {
+	        alert('Please fill in all the fields');
+	        return false;
+	    }
+	
+	    if (choice === '') {
+	        alert('Please select at least one choice');
+	        return false;
+	    }
+
+		var data = "restaurantName=" + encodeURIComponent(restaurantName) + "&latitude=" + encodeURIComponent(latitude) +
+           "&longitude=" + encodeURIComponent(longitude) + "&choice=" + encodeURIComponent(choice);
+	
+		var xhr = new XMLHttpRequest();
+	    var url = "RestaurantSearchServlet"; 
+	    xhr.open("POST", url, true);
+	    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	
+	    xhr.onreadystatechange = function() {
+	        if (xhr.readyState === 4 && xhr.status === 200) {
+	            var response = xhr.responseText;
+	            var data = JSON.parse(response);
+	            
+	            var resultsDiv = document.getElementById("resultsDiv");
+	            resultsDiv.innerHTML = ''; 
+	            
+	            var results = document.createElement('h2');
+	            results.textContent = "Results for \"" + document.getElementsByName("restaurantName")[0].value + "\"";
+	            resultsDiv.appendChild(results);
+	
+	            data.forEach(function(restaurant) {
+	                var restaurantContainer = document.createElement('div');
+	                restaurantContainer.className = 'restaurant-container';
+	                
+	                var restaurantImage = document.createElement('img');
+	                restaurantImage.src = restaurant.image_url;
+	                restaurantImage.alt = restaurant.name + ' image';
+	                restaurantImage.className = 'restaurant-image';
+	                
+	                restaurantImage.onclick = function() {	            
+					    var resultsDiv2 = document.getElementById("resultsDiv");
+	            		resultsDiv2.innerHTML = ''; // Clear previous results
+	            		
+	            		var result = document.createElement('h2');
+			            result.textContent = restaurant.name;
+			            resultsDiv.appendChild(result);
+			            
+	            		var restaurantContainer = document.createElement('div');
+		                restaurantContainer.className = 'restaurant-container';
+		               
+		                var restaurantImage = document.createElement('img');
+		                restaurantImage.src = restaurant.image_url;
+		                restaurantImage.alt = restaurant.name + ' image';
+		                restaurantImage.className = 'restaurant-image';
+	            		
+	            		var restaurantInfo = document.createElement('div');
+		                restaurantInfo.className = 'restaurant-info';
+		              
+		                var restaurantAddress = document.createElement('p');
+		                restaurantAddress.textContent = "Address: " + restaurant.location.address1 + " " + restaurant.location.city + " " + restaurant.location.zip_code;
+		               	
+		               	var phonenumber = document.createElement('p');
+		                phonenumber.textContent = "Phone No. " + restaurant.display_phone;
+		               	
+		               	var cuisine = document.createElement('p');
+		               	cuisine.textContent = "Cuisine: " + restaurant.categories[0].title;
+		               	
+		               	var price = document.createElement('p');
+		               	price.textContent = "Price: " + restaurant.price;
+		               	
+		               var ratingDiv = document.createElement('div');
+					    ratingDiv.className = 'rating';
+					
+					    // Create rating label
+					    var ratingLabel = document.createElement('span');
+					    ratingLabel.className = 'rating-label';
+					    ratingLabel.textContent = "Rating: ";
+					    ratingDiv.appendChild(ratingLabel);
+					
+						// Create star container
+					    var starContainer = document.createElement('div');
+					    starContainer.className = 'starContainer';
+					    starContainer.textContent = '\u2605' + '\u2605' + '\u2605' + '\u2605' + '\u2605';
+					    //console.log(restaurant.name + " has rating: " + restaurant.rating);
+					    var StarContainerWidth = restaurant.rating / 5.0 * 80.0;
+					    //console.log(StarContainerWidth);
+						starContainer.style.width = StarContainerWidth + "px";
+					    ratingDiv.appendChild(starContainer);
+						
+							
+		                restaurantInfo.appendChild(restaurantAddress);
+		                restaurantInfo.appendChild(phonenumber);
+		               	restaurantInfo.appendChild(cuisine);
+		                restaurantInfo.appendChild(price);
+					    restaurantInfo.appendChild(ratingDiv);
+
+		                restaurantContainer.appendChild(restaurantImage);
+		                restaurantContainer.appendChild(restaurantInfo);
+		                
+		                var buttonContainer = document.createElement('div');
+		                buttonContainer.className = 'buttonContainer';
+		                
+		                var isFavorite = favorList.some(function(favoriteRestaurant) {
+		                    return favoriteRestaurant.name === restaurant.name;
+		                });
+		
+		                if (!isFavorite) {
+		                    var addToFavoritesButton = document.createElement('button');
+						    addToFavoritesButton.textContent = '\u2605' + ' Add to Favorites';
+						    addToFavoritesButton.className = 'favorites-button'; // Add a class for styling
+							addToFavoritesButton.onclick = function () {
+			    				AddFavoriteForm(event, restaurant.name, restaurant.image_url, restaurant.location.address1 + " " + restaurant.location.city + " " + restaurant.location.zip_code); // Pass the restaurant name here
+								addToFavoritesButton.textContent = '\u2605' + ' Remove from Favorites';
+							};
+						    buttonContainer.appendChild(addToFavoritesButton); 
+		                }
+		                else {
+							var addToFavoritesButton = document.createElement('button');
+						    addToFavoritesButton.textContent = '\u2605' + ' Remove from Favorites';
+						    addToFavoritesButton.className = 'favorites-button'; // Add a class for styling
+							addToFavoritesButton.onclick = function () {
+			    				 RemoveFavoriteForm(event, restaurant.name, restaurant.image_url, restaurant.location.address1 + " " + restaurant.location.city + " " + restaurant.location.zip_code); // Pass the restaurant name here
+							};
+						    buttonContainer.appendChild(addToFavoritesButton); 
+						}
+					    
+					    var submitReservationButton = document.createElement('button');
+					    submitReservationButton.textContent = 'Add Reservation';
+					    submitReservationButton.className = 'reservation-button'; // Add a class for styling
+					    submitReservationButton.onclick = function () {
+							createReservationForm(this.parentElement, restaurant.name, restaurant.image_url, restaurant.location.address1 + " " + restaurant.location.city + " " + restaurant.location.zip_code);
+						};
+		                buttonContainer.appendChild(submitReservationButton);
+		                
+		                resultsDiv.appendChild(restaurantContainer);
+		            	resultsDiv.appendChild(buttonContainer);
+					};
+
+	                
+	                var restaurantInfo = document.createElement('div');
+	                restaurantInfo.className = 'restaurant-info';
+	                
+	                var restaurantName = document.createElement('h3');
+	                restaurantName.textContent = restaurant.name;
+	                
+	                var restaurantAddress = document.createElement('p');
+	                restaurantAddress.textContent = restaurant.location.address1 + " " + restaurant.location.city + " " + restaurant.location.zip_code;
+	               	
+	               	var restaurantUrl = document.createElement('a');
+	               	var fullUrl = restaurant.url;
+	               	var trimmedUrl = fullUrl.split('?')[0];
+					restaurantUrl.href = trimmedUrl; // Set href to the trimmed URL
+					restaurantUrl.textContent = trimmedUrl; 
+	                
+	                restaurantInfo.appendChild(restaurantName);
+	                restaurantInfo.appendChild(restaurantAddress);
+	                restaurantInfo.appendChild(restaurantUrl);
+	                
+	                restaurantContainer.appendChild(restaurantImage);
+	                restaurantContainer.appendChild(restaurantInfo);
+	                
+	                resultsDiv.appendChild(restaurantContainer);
+	                
+	              
+	            });
+	        }
+	    }
+	    
+	  
+	  	xhr.send(data);
+	
+	    return false; 
+	}
+	
+	function back() {
+		var url = new URL(window.location.href);
+		var params = new URLSearchParams(url.search);
+		var userId = params.get('user_id');
+
+		window.location.href = 'loginhome.html?user_id=' + encodeURIComponent(userId);
+	}
+	
+	function favorite() {
+		var url = new URL(window.location.href);
+		var params = new URLSearchParams(url.search);
+		var userId = params.get('user_id');
+
+		window.location.href = 'favorites.html?user_id=' + encodeURIComponent(userId);
+	}
+	
+	function reservation() {
+		var url = new URL(window.location.href);
+		var params = new URLSearchParams(url.search);
+		var userId = params.get('user_id');
+
+		window.location.href = 'reservations.html?user_id=' + encodeURIComponent(userId);
+	}
+	
+</script>
+
+<style>	
+	.sort-select {
+	  border: 1px solid #ddd;
+	  border-radius: 5px;
+	  background-color: white;
+	  cursor: pointer;
+	  width: 85%; 
+	  box-sizing: border-box; 
+	  font-family: 'Mochiy Pop P One', sans-serif;
+	}
+
+	.sort-select option {
+	  background-color: white;
+	}
+
+	.sort-select {
+		background-color:  rgb(174, 6, 5);
+		color: white;
+	}
+	
+	.emptyLine {
+		color: white;
+	}
+	.rating {
+	    display: flex;
+	    align-items: center;
+	}
+	
+	.rating-label {
+	    margin-right: 5px; 
+	}
+	
+	.starContainer {
+	    display: inline-block;
+	    overflow: hidden;
+	    white-space: nowrap; 
+	}
+
+	
+	.lineInput1 {
+		width: 49%;	
+		margin-left: auto;
+		margin-right: auto;
+		padding-top: 10px;
+		padding-bottom: 10px;
+		margin-right: 1%;
+	}
+	
+	.lineInput2 {
+		margin-left: 1%;
+		width: 49%;	
+		margin-left: auto;
+		margin-right: auto;
+		padding-top: 10px;
+		padding-bottom: 10px;
+	}
+	
+	.note {
+		margin-top: 15px;
+		width: 99.5%;
+		padding-top: 5px;
+		padding-bottom: 35px;
+		margin-bottom: 15px;
+	}
+	
+	.reservation-form .reservation-button2 {
+		width: 100%;
+		height: 40px;
+		margin-bottom: 10px;
+		border-radius: 5px;
+		border: none;
+		background-color: rgb(174, 6, 5);
+		color: white;
+		
+	}
+	
+	.buttonContainer button {
+		width: 100%;
+		height: 40px;
+		margin-bottom: 10px;
+		border-radius: 5px;
+		border: none;
+	}
+	
+	.buttonContainer .favorites-button {
+		background-color: rgb(250, 201, 0);
+		color: grey;
+	}
+	
+	.buttonContainer .reservation-button {
+		background-color: rgb(174, 6, 5);
+		color: white;
+	}
+	
+	.buttonContainer {
+		width: 100%;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	
+	html, body {
+	    margin: 0;
+	    padding: 0;
+	}
+	
+	body {
+		padding-bottom: 30px;
+	}
+
+	@font-face {
+        font-family: "Galada-Regular";
+        src: url("font/Galada-Regular.ttf");
+    }
+    
+    #navbar {
+        position: fixed;
+        width: 100%;
+        height: 80px; 
+       	margin-top: 0px;
+       	padding-top:0px;
+        background-color: #fff; 
+        border-bottom: 1px solid #ddd; 
+    }
+
+    #navbar ul {
+        font-family: 'Mochiy Pop P One', sans-serif;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        text-align: right;
+        line-height: 80px; 
+        margin-right: 50px;
+        font-size: 15px;
+    }
+
+    #navbar h1 {
+		color: rgb(174, 6, 5);
+		font-size:40px;
+        font-family: 'Galada-Regular';
+        margin: 0;
+        padding: 0;
+        display: inline;
+        margin-right: 20px; 
+        margin-left: 50px;
+        float: left;
+    }
+
+    #navbar li {
+        display: inline;
+        margin-right: 15px;
+    }
+
+    #navbar a {
+        color: grey;
+        text-decoration: none;
+    }
+
+    #navbar a:hover {
+		color: rgb(174, 6, 5);
+    }
+
+    .search-button {
+        background-color: rgb(174, 6, 5); 
+        border: none;
+        
+        padding: 8px 12px;
+        border-radius: 4px; 
+        cursor: pointer; 
+    }
+
+    .search-button svg {
+        fill: #FFFFFF; 
+    }
+    
+	#search {
+		font-family: 'Mochiy Pop P One', sans-serif;
+	    display: flex;
+	    flex-direction: row; 
+	    align-items: center; 
+	    justify-content: center; 
+	    margin-top: 20px; 
+	    width: 100%; 
+	    margin-left: auto;
+	    margin-right: auto;
+	    margin-bottom: -15px;
+	}
+	
+	#main, #sidebar {
+	    justify-content: space-around; 
+	    align-items: center; 
+	    margin-bottom: 20px; 
+	}
+	
+	#main {
+	    flex-direction: row;
+	    align-items: center;
+	    flex-grow: 0.4;
+	    margin-left: 2%; 
+	}
+	
+	#sidebar {
+		margin-left: 10px;
+		display: flex;
+		flex-grow: 0.1;
+	    flex-direction: column;
+	    align-items: flex-start;
+	}
+
+	.search-button, .map-button {
+	    padding: 7px 20px;
+	    margin: 5px 10px 0px 10px; 
+	}
+	
+	input[type="text"] {
+	    flex: 1; 
+	    margin: 0 10px; 
+	    padding: 12px; 
+	}
+	
+	.map-button {
+		width: 80%;
+	    background-color: #007BFF; 
+	    color: white; 
+	    border: none;
+	    border-radius: 5px;
+	   	padding: 13px 30px; 
+	    cursor: pointer; 
+	}
+	
+	.radioClass {
+		padding-top: 10px;
+		margin-left: 5px;
+		margin-bottom: 0px;
+		color: grey;
+	}
+	
+	#restName {
+		width: 78.5%;
+		margin-bottom: 20px;
+		margin-top: 0px;
+	}
+	
+	.location {
+		width: 42%;
+	}
+	
+	 .label-fixed-width {
+        display: inline-block;
+        width: 150px; 
+    }
+
+   	.results-container {
+    	margin-top: 30px; 
+	}
+	
+	.restaurant-container {
+	    display: flex;
+	    margin-bottom: 20px; 
+		border-top: 1px dashed rgb(211, 211, 211); 
+	    padding-bottom: 20px;
+	    padding-top: 40px
+	}
+	
+	.restaurant-image {
+	    width: 250px; 
+	    height: 250px; 
+	    object-fit: cover; 
+	    border-radius: 20px; 
+	    margin-right: 50px; 
+	}
+	
+	.restaurant-info h3 {
+		font-weight: normal;
+		margin-top: 30px;
+	}
+	
+
+	#resultsDiv {
+		width: 79.5%;
+		margin-left: auto;
+		margin-right: auto;
+		color:grey;
+		font-family: sans-serif;
+	}
+	
+
+	#resultsDiv a {
+	    color: grey; 
+	    text-decoration: none; 
+	    font-family: sans-serif; 
+	}
+	
+	#resultsDiv h2 {
+		font-size: 1.8em;
+		padding-bottom: 10px;
+		font-weight: normal;
+		margin-left: -2px;
+	}
+	
+	.modal {
+	  display: none;
+	  position: fixed;
+	  z-index: 1;
+	  padding-top: 100px;
+	  left: 0;
+	  top: 0;
+	  width: 100%;
+	  height: 100%;
+	  overflow: auto;
+	  background-color: rgb(0,0,0);
+	  background-color: rgba(0,0,0,0.4);
+	}
+	
+	.modal-content {
+	  background-color: #fefefe;
+	  margin: auto;
+	  padding: 0;
+	  width: 50%;
+	  padding: 0;
+	  position: relative;
+	}
+	
+	.close {
+	  display: none;
+	  color: #aaa;
+	  float: right;
+	  font-size: 28px;
+	  font-weight: bold;
+	  margin: 0;
+	  padding: 0;
+	  line-height: normal;
+	}
+	
+	.close:hover,
+	.close:focus {
+	  color: black;
+	  text-decoration: none;
+	  cursor: pointer;
+	}
+	
+	#map {
+	  height: 400px;
+	  width: 100%;
+	  margin: 0;
+	}
+
+	#space {
+		padding-top: 100px
+	}
+	
+	@font-face {
+		font-family: "fontawesome-webfont";
+		src: url('font/fontawesome-webfont.ttf')
+	}
+
+	.search-button::before {
+	    font-family: 'fontawesome-webfont'; 
+	    content: "\f002"; 
+	}
+	
+	.search-button {
+		font-weight: normal;
+		color: white;
+		font-size: 1.1em;
+		height: 40px;
+		width: 73px;
+	}
+</style>
+
+</head>
+<body>
+
+    <div id="navbar">
+        <ul>
+			<h1 onclick="return back()">JoesTable!</h1>
+			<li><a onclick="return back()">Home</a></li>
+            <li><a onclick="return favorite()">Favorites</a></li>
+            <li><a onclick="return reservation()">Reservations</a></li>
+            <li><a href="home.html">Logout</a></li>
+        </ul>
+        <div class="clearfloat"></div>
+    </div> <!-- #navbar -->
+	   
+	   <div id="space"></div>
+	   
+	  	<form id="searchForm" method="GET">  
+	    <div id="search">
+	
+			<div id = "main">
+				<input id="restName" type="text" placeholder="Restaurant Name" name="restaurantName">
+				
+				<button class="search-button">
+
+				</button>
+	
+				<input class= "location" type="text" placeholder="latitude" name="latitude">
+				<input class= "location" type="text" placeholder="longitude" name="longitude">
+			</div>
+	
+			
+			<div id="sidebar">
+				<div class="radioClass">
+					<label class="label-fixed-width"> <input type="radio" name="choice" value="best_match">Best Match</label>
+					<label class="label-fixed-width"> <input type="radio" name="choice" value="review_count">Review Count</label>
+					<br />
+					<label class="label-fixed-width"> <input type="radio" name="choice" value="rating">Rating</label>
+					<label class="label-fixed-width"> <input type="radio" name="choice" value="distance">Distance</label>
+				</div>
+				<br />	
+
+				<button class="map-button" onclick="openMapPopup(event)"><i class="fa fa-map-marker"></i> Google Maps (Drop a pin!)</button>
+		</div>
+		</form>	
+	</div>
+
+	
+	<div id="myModal" class="modal">
+	  <div class="modal-content">
+	    <span class="close">&times;</span>
+	    <div id="map"></div>
+	  </div>
+	</div> 
+
+	
+	<div id="resultsDiv">
+		
+	</div>  
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Login / Sign Up</title>
+<script src='https://kit.fontawesome.com/a076d05399.js' crossorigin='anonymous'></script>
+<script>
+	
+function back() {
+	window.location.href = 'home.html';
+}
+
+function submitLoginForm() {
+    var xhr = new XMLHttpRequest();
+    var url = "LoginServlet"; 
+    xhr.open("POST", url, true);
+    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var response = xhr.responseText;
+            // console.log(response); 
+            if (response == "exist") {
+				alert('Your username is not correct!');
+			}
+			else if (response == 'password') {
+				alert('Your password is not correct!');
+			}
+			else {        
+				window.location.href = 'loginhome.html?user_id=' + encodeURIComponent(response);
+			}
+        }
+    };
+
+    var username = document.getElementsByName("Username")[0].value;
+    var password = document.getElementsByName("Password")[0].value;
+    var data = "Username=" + username + "&Password=" + password;
+    xhr.send(data);
+
+    return false; 
+}
+
+function validateForm() {
+	var xhr = new XMLHttpRequest();
+    var url = "SignUpServlet"; 
+	
+    var username = document.getElementsByName("Username2")[0].value;
+    var email = document.getElementsByName("Email2")[0].value;
+    var password = document.getElementsByName("Password2")[0].value;
+    var passwordAgain = document.getElementsByName("PasswordAgain")[0].value;
+    var checkbox = document.getElementsByName("Checkbox")[0];
+	
+    if (username.trim() === '' || email.trim() === '' || password.trim() === '' || passwordAgain.trim() === '') {
+        alert('Please fill in all the fields');
+        return false;
+    }
+    if (password !== passwordAgain) {
+        alert('Passwords do not match');
+        return false;
+    }
+    if (!checkbox.checked) {
+        alert('Please agree to the terms and conditions');
+        return false;
+    }
+
+ 	xhr.open("POST", url, true);
+    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var response = xhr.responseText;
+            // Handle the response here
+            if (response == "Email") {
+				alert('Email is already in use!');
+			}
+            else if (response == "Username") {
+				alert('Username is already in use!');	
+            }
+            else {
+				window.location.href = 'loginhome.html?user_id=' + encodeURIComponent(response);
+			}
+        }
+    };
+
+    var data = "Username=" + encodeURIComponent(username) + 
+               "&Email=" + encodeURIComponent(email) +
+               "&Password=" + encodeURIComponent(password);
+    xhr.send(data);
+
+    return false;
+}
+
+
+</script>
+
+<style>
+	html, body {
+	    margin: 0;
+	    padding: 0;
+	    
+	}
+
+	@font-face {
+        font-family: "Galada-Regular";
+        src: url("font/Galada-Regular.ttf");
+    }
+    
+    #navbar {
+        position: fixed;
+        width: 100%;
+        height: 80px; 
+       	margin-top: 0px;
+       	padding-top:0px;
+        background-color: #fff; 
+        border-bottom: 1px solid #ddd; 
+    }
+
+    #navbar ul {
+        font-family: 'Mochiy Pop P One', sans-serif;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        text-align: right;
+        line-height: 80px; 
+        margin-right: 50px;
+        font-size: 15px;
+    }
+
+    #navbar h1 {
+		color: rgb(174, 6, 5);
+		font-size:40px;
+        font-family: 'Galada-Regular';
+        margin: 0;
+        padding: 0;
+        display: inline;
+        margin-right: 20px; 
+        margin-left: 50px;
+        float: left;
+    }
+
+    #navbar li {
+        display: inline;
+        margin-right: 15px;
+    }
+
+    #navbar a {
+        color: grey;
+        text-decoration: none;
+    }
+
+    #navbar a:hover {
+		color: rgb(174, 6, 5);
+    }
+    
+	#main {
+		width: 50%;
+		margin-left: auto;
+		margin-right: auto;
+		padding: 10px;
+		padding-left: 50px;
+	}
+
+	#sidebar{
+		width: 50%;
+		padding: 10px;
+		padding-left: 50px;
+		padding-right: 50px;
+	}
+
+	#page-wrapper{
+		padding-top: 140px;
+		display: flex;
+		width: 100%;
+		margin-left: auto;
+		margin-right: auto;
+
+	}
+	
+	#page-wrapper .largeTitle {
+		color: grey;
+		font-size: 1.5em;
+		font-family: 'Mochiy Pop P One', sans-serif;
+	}
+	
+	#page-wrapper p{
+		font-family: 'Mochiy Pop P One', sans-serif;
+		color: grey;
+		font-size: 0.8em;
+	}
+	
+	.inputBox {
+		width: 98.5%;
+		height: 25px;
+	}
+
+	#textcolor {
+		color: grey;
+		font-family: 'Mochiy Pop P One', sans-serif;
+	}
+	
+	.submit_button {
+		color:white;
+		width: 100%;
+		margin-top: 20px;
+	    background-color: rgb(174, 6, 5);
+	    height: 30px;
+	    border-radius: 5px;
+	    display: flex; 
+	    justify-content: center; 
+	    align-items: center; 
+	    font-family: 'Mochiy Pop P One', sans-serif;
+	}
+
+</style>
+
+</head>
+<body>
+    <div id="navbar">
+        <ul>
+			<h1 onclick="return back()">JoesTable!</h1>
+			<li><a href="home.html">Home</a></li>
+            <li><a href="login.html">Login / Sign Up</a></li>
+            
+        </ul>
+        <div class="clearfloat"></div>
+    </div> <!-- #navbar -->
+    
+    <div id="page-wrapper">
+		
+	<div id="main">
+	<form name="myform" method="GET" action="LoginServlet" onsubmit="return submitLoginForm()">
+		<p class="largeTitle">Login</p>
+		<p>Username</p>
+		<input class="inputBox" type="text" name="Username" placeholder="tommytrojan">
+		<p>Password</p>
+		<input class="inputBox" type="password" name="Password" placeholder="tommytrojan@2023">
+		<button class="submit_button" name="submit" value="Submit"><svg contentScriptType="text/ecmascript" contentStyleType="text/css" enable-background="new 0 0 12 12" height="16px" fill="white" id="Layer_1" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0.0 0 1536.0 2048" width="20px" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" zoomAndPan="magnify"><path d="M1184,1024c0,17.333-6.333,32.333-19,45l-544,544c-12.667,12.667-27.667,19-45,19s-32.333-6.333-45-19s-19-27.667-19-45  v-288H64c-17.333,0-32.333-6.333-45-19s-19-27.667-19-45V832c0-17.333,6.333-32.333,19-45s27.667-19,45-19h448V480  c0-17.333,6.333-32.333,19-45s27.667-19,45-19s32.333,6.333,45,19l544,544C1177.667,991.667,1184,1006.667,1184,1024z M1536,672v704  c0,79.333-28.167,147.167-84.5,203.5S1327.333,1664,1248,1664H928c-8.667,0-16.167-3.167-22.5-9.5s-9.5-13.833-9.5-22.5  c0-2.667-0.333-9.333-1-20s-0.833-19.5-0.5-26.5s1.333-14.833,3-23.5s5-15.167,10-19.5s11.833-6.5,20.5-6.5h320  c44,0,81.667-15.667,113-47s47-69,47-113V672c0-44-15.667-81.667-47-113s-69-47-113-47H960h-11h-13c0,0-3.833-0.333-11.5-1  s-11.5-1.667-11.5-3s-2.667-3.167-8-5.5s-7.667-5.333-7-9s0-8.167-2-13.5c0-2.667-0.333-9.333-1-20s-0.833-19.5-0.5-26.5  s1.333-14.833,3-23.5s5-15.167,10-19.5s11.833-6.5,20.5-6.5h320c79.333,0,147.167,28.167,203.5,84.5S1536,592.667,1536,672z"/></svg>Sign In</button>
+	</form>
+	</div> <!-- #main -->
+	
+	
+	<div id="sidebar">
+		<form method="GET" action="SignUpServlet" onsubmit="return validateForm()">
+			<p class="largeTitle">Sign Up</p>
+			<p>Email</p>
+			<input class="inputBox" type="email" placeholder="tommytrojan@usc.edu" name="Email2">
+			<p>Username</p>
+			<input class="inputBox" type="text" placeholder="tommytrojan" name = "Username2">
+			<p>Password</p>
+			<input class="inputBox" type="password" placeholder="tommytrojan@2023" name="Password2">
+			<p>Confirm Password</p>
+			<input class="inputBox" type="password" placeholder="tommytrojan@2023" name="PasswordAgain">
+			<p> </p>
+			<label id="textcolor"> <input type="checkbox" name="Checkbox"> I have read and agree to all terms and conditions of JoesTable. </label>
+			<button class="submit_button"><svg xmlns="http://www.w3.org/2000/svg" height="12" width="16" fill="white" viewBox="0 0 640 512"><!--!Font Awesome Free 6.5.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M624 208h-64v-64c0-8.8-7.2-16-16-16h-32c-8.8 0-16 7.2-16 16v64h-64c-8.8 0-16 7.2-16 16v32c0 8.8 7.2 16 16 16h64v64c0 8.8 7.2 16 16 16h32c8.8 0 16-7.2 16-16v-64h64c8.8 0 16-7.2 16-16v-32c0-8.8-7.2-16-16-16zm-400 48c70.7 0 128-57.3 128-128S294.7 0 224 0 96 57.3 96 128s57.3 128 128 128zm89.6 32h-16.7c-22.2 10.2-46.9 16-72.9 16s-50.6-5.8-72.9-16h-16.7C60.2 288 0 348.2 0 422.4V464c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48v-41.6c0-74.2-60.2-134.4-134.4-134.4z"/></svg>Create Account</button>
+		</form>
+	</div> <!--sidebar-->
+
+	</div> <!-- page-wrapper-->
+
+</body>
+</html>
