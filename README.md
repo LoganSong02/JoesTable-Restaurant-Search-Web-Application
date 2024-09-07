@@ -5,7 +5,7 @@ Demo Video： https://drive.google.com/file/d/10K622gKwRci0XKhS2Vo5RKFcin8bfuqH/
 - Designed the frontend page by utilizing AJAX for client-side rendering to ensure smooth interactive experiences.
 - Integrated the Google Maps API to enhance the accuracy of location services and overall user experience
 
-# Note：
+## Note：
 Due to licensing and proprietary restrictions, the source code for this project cannot be publicly released. However, if you're interested in viewing specific portions of the code, please contact me at logansong1015@outlook.com. I will be happy to provide code samples upon request. Thank you for your understanding!
 
 
