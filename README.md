@@ -1,4 +1,4 @@
-# JoesTable-Web-Service-Application
+# JoesTable Restaurant Search Web Application	
 Demo Video： https://drive.google.com/file/d/10K622gKwRci0XKhS2Vo5RKFcin8bfuqH/view?usp=sharing
 - Developed a web application for users to search restaurants, save preferences, and make reservations 
 - Implemented Java servlets with Restful APIs to handle HTTP requests and responses, utilizing MySQL to store user information and restaurant details retrieved from the Yelp API. Integrated with Spring-based rate-limiting mechanism so that the QPS won’t exceed threshold.
